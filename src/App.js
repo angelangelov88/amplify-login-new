@@ -1,7 +1,8 @@
-import { Amplify } from 'aws-amplify';
+import { Amplify, Auth } from 'aws-amplify';
 import React from 'react';
-import { Authenticator } from '@aws-amplify/ui-react';
+import { AccountSettings, Authenticator } from '@aws-amplify/ui-react';
 import '@aws-amplify/ui-react/styles.css';
+import QRCode from 'qrcode.react';
 
 import awsExports from './aws-exports';
 Amplify.configure(awsExports);
@@ -84,14 +85,74 @@ Amplify.configure(awsExports);
 // });
 
 export default function App() {
+
+  const [userMFA, setUserMFA] = React.useState(null);
+  const [code, setCode] = React.useState(null);
   return (
     <Authenticator socialProviders={["google"]}>
-      {({ signOut, user }) => (
+      {({ signOut, user, setupTOTP }) => {
+        setUserMFA(user.preferredMFA);
+
+        const handleSet2FATOTP = async () => {
+          await Auth.setPreferredMFA(user, 'TOTP');
+          setUserMFA('TOTP');
+          console.log('set2fa');
+          return;
+        };
+
+        const handleSet2FASMS = async () => {
+          await Auth.setPreferredMFA(user, 'SMS');
+          setUserMFA('TOTP');
+          console.log('set2fa');
+          return;
+        };
+
+        const handleRemove2FA = async () => {
+          await Auth.setPreferredMFA(user, 'NOMFA');
+          setUserMFA('NOMFA');
+          console.log('removed');
+          return;
+        }
+
+        const handleMFASetup = async () => {
+          await Auth.setupTOTP(user)
+          .then((code) => {
+        // You can directly display the `code` to the user or convert it to a QR code to be scanned.
+        // E.g., use following code sample to render a QR code with `qrcode.react` component:  
+        {/* setCode(code); */}
+        setCode(`otpauth://totp/AWSCognito:${user.username}?secret=${code}&issuer=AWSCognito`)
+    })
+    .catch((err) => console.log(err));
+          console.log('setup');
+          return;
+        }
+
+      const handleSuccess = () => {
+        alert('password is successfully changed!')
+      }
+
+       console.log("user", user);
+        return (
         <main>
           <h1>Hello {user.username}</h1>
+          <div>
+            <h4>Set 2FA</h4>
+            <p>MFA status: {userMFA && userMFA === 'NOMFA' ? 'Disabled' : 'Enabled'}</p>
+            <button onClick={handleSet2FATOTP} disabled={userMFA === "SOFTWARE_TOKEN_MFA"}>Set Auth APP 2FA</button>
+            <button onClick={handleSet2FASMS} disabled={userMFA === 'SMS'}>Set SMS Auth</button>
+            <button onClick={handleRemove2FA} disabled={userMFA === "NOMFA"}>Remove 2FA</button>
+            <button onClick={handleMFASetup}>SetUpFlow</button>
+            <QRCode value={code} />
+          </div>
           <button onClick={signOut}>Sign out</button>
+          <div style={{ 'margin': '50px'}}>
+            <h4>Change password</h4>
+          <AccountSettings.ChangePassword onSuccess={handleSuccess}/>
+          </div>
+
         </main>
-      )}
+      )
+      }}
     </Authenticator>
   );
 }
