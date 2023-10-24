@@ -86,31 +86,80 @@ Amplify.configure(awsExports);
 
 export default function App() {
 
-  const [userMFA, setUserMFA] = React.useState(null);
+  // const [userMFA, setUserMFA] = React.useState(null);
   const [code, setCode] = React.useState(null);
+  const [otpCode, setOtpCode] = React.useState(null);
+
   return (
     <Authenticator socialProviders={["google"]}>
       {({ signOut, user, setupTOTP }) => {
-        setUserMFA(user.preferredMFA);
+        {/* setUserMFA(user.preferredMFA); */}
+
+        async function setupTOTPAuth(user, challengeAnswer, mfaType) {
+          // To setup TOTP, first you need to get a `authorization code` from Amazon Cognito
+          // `user` is the current Authenticated user
+          const OTPCode = '123456'; // Code retrieved from authenticator app.
+          // You can directly display the `code` to the user or convert it to a QR code to be scanned.
+          // E.g., use following code sample to render a QR code with `qrcode.react` component:
+          //      import QRCodeCanvas from 'qrcode.react';
+          //      const str = "otpauth://totp/AWSCognito:"+ username + "?secret=" + code + "&issuer=" + issuer;
+          //      <QRCodeCanvas value={str}/>
+
+          // ...
+
+          // Then you will have your TOTP account in your TOTP-generating app (like Google Authenticator)
+          // Use the generated one-time password to verify the setup
+          try {
+            const cognitoUserSession = await Auth.verifyTotpToken(user, challengeAnswer);
+            // don't forget to set TOTP as the preferred MFA method
+            await Auth.setPreferredMFA(user, 'TOTP');
+          } catch (error) {
+            // Token is not verified
+          }
+
+          // ...
+
+          // Finally, when sign-in with MFA is enabled, use the confirmSignIn method
+          // to pass the TOTP code and MFA type.
+          await Auth.confirmSignIn(user, code, mfaType); // Optional, MFA Type e.g. SMS_MFA || SOFTWARE_TOKEN_MFA
+        }
+        const handleBtn1 = async () => {
+          await Auth.setupTOTP(user, 'MFA_SETUP', 'TOTP');
+        }
 
         const handleSet2FATOTP = async () => {
-          await Auth.setPreferredMFA(user, 'TOTP');
-          setUserMFA('TOTP');
-          console.log('set2fa');
+          await Auth.setPreferredMFA(user, 'TOTP')
+          .then((data) => {
+            console.log('data', data)
+            console.log('set2faTOTP-1');
+            {/* setUserMFA('TOTP'); */}
+        })
+          .catch((err) => console.log(err));
+          console.log('set2faTOTP-2');
           return;
         };
 
         const handleSet2FASMS = async () => {
-          await Auth.setPreferredMFA(user, 'SMS');
-          setUserMFA('TOTP');
-          console.log('set2fa');
+          await Auth.setPreferredMFA(user, 'SMS')
+          .then((data) => {
+            console.log(data)
+            console.log('set2faSMS-1');
+            {/* setUserMFA('SMS'); */}
+          })
+          .catch((err) => console.log(err));
+          console.log('set2faSMS');
           return;
         };
 
         const handleRemove2FA = async () => {
-          await Auth.setPreferredMFA(user, 'NOMFA');
-          setUserMFA('NOMFA');
-          console.log('removed');
+          await Auth.setPreferredMFA(user, 'NOMFA')
+          .then((data) => {
+            console.log(data)
+            console.log('removed-1');
+            {/* setUserMFA('NOMFA'); */}
+          })
+          .catch((err) => console.log(err));
+          console.log('removed-2');
           return;
         }
 
@@ -120,29 +169,58 @@ export default function App() {
         // You can directly display the `code` to the user or convert it to a QR code to be scanned.
         // E.g., use following code sample to render a QR code with `qrcode.react` component:  
         {/* setCode(code); */}
-        setCode(`otpauth://totp/AWSCognito:${user.username}?secret=${code}&issuer=AWSCognito`)
-    })
-    .catch((err) => console.log(err));
-          console.log('setup');
-          return;
+            setCode(`otpauth://totp/AWSCognito:${user.username}?secret=${code}&issuer=AWSCognito`)
+          })
+          .catch((err) => console.log(err));
+                console.log('setup');
+                return;
         }
 
-      const handleSuccess = () => {
-        alert('password is successfully changed!')
-      }
+          const handleSuccess = () => {
+            alert('password is successfully changed!')
+          }
 
-       console.log("user", user);
+          const handleTOTPVerify = async (e) => {
+            e.preventDefault();
+            console.log('otpCode', otpCode);
+            try {
+              const cognitoUserSession = await Auth.verifyTotpToken(user, otpCode);
+              // The verification is successful.
+              // Set TOTP as the preferred MFA method if necessary.
+              await Auth.setPreferredMFA(user, 'TOTP');
+            } catch (error) {
+              console.error('Error verifying TOTP MFA:', error);
+            }
+          }
+
+       {/* console.log("user", user); */}
         return (
         <main>
-          <h1>Hello {user.username}</h1>
+          <h1>Hello {user.attributes.email}</h1>
           <div>
             <h4>Set 2FA</h4>
-            <p>MFA status: {userMFA && userMFA === 'NOMFA' ? 'Disabled' : 'Enabled'}</p>
-            <button onClick={handleSet2FATOTP} disabled={userMFA === "SOFTWARE_TOKEN_MFA"}>Set Auth APP 2FA</button>
-            <button onClick={handleSet2FASMS} disabled={userMFA === 'SMS'}>Set SMS Auth</button>
-            <button onClick={handleRemove2FA} disabled={userMFA === "NOMFA"}>Remove 2FA</button>
+            <p>MFA status: {user && user.preferredMFA === 'NOMFA' ? 'Disabled' : 'Enabled'}</p>
+            <button onClick={handleSet2FATOTP} disabled={user.preferredMFA === "SOFTWARE_TOKEN_MFA"}>Set Auth APP 2FA</button>
+            <button onClick={handleSet2FASMS} disabled={user.preferredMFA === 'SMS'}>Set SMS Auth</button>
+            <button onClick={handleRemove2FA} disabled={user.preferredMFA === "NOMFA"}>Remove 2FA</button>
+            <button onClick={handleBtn1}>Setup TOTP 1</button>
             <button onClick={handleMFASetup}>SetUpFlow</button>
-            <QRCode value={code} />
+            {code &&
+            <>
+              <p>Scan this QR code with your authenticator app</p>
+              <QRCode value={code} />
+              <form onSubmit={handleTOTPVerify}>
+                <label>Code:
+                  <input 
+                    type="text" 
+                    value={otpCode}
+                    onChange={(e) => setOtpCode(e.target.value)}
+                  />
+                </label>
+                <input type="submit" />
+              </form>
+            </>
+            }
           </div>
           <button onClick={signOut}>Sign out</button>
           <div style={{ 'margin': '50px'}}>
