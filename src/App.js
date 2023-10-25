@@ -122,9 +122,6 @@ export default function App() {
         const handleMFASetup = async () => {
           await Auth.setupTOTP(user)
           .then((code) => {
-        // You can directly display the `code` to the user or convert it to a QR code to be scanned.
-        // E.g., use following code sample to render a QR code with `qrcode.react` component:  
-        {/* setCode(code); */}
             setCode(`otpauth://totp/AWSCognito:${user.username}?secret=${code}&issuer=AWSCognito`)
           })
           .catch((err) => console.log(err));
@@ -140,7 +137,12 @@ export default function App() {
             e.preventDefault();
             console.log('otpCode', otpCode);
             try {
-              const cognitoUserSession = await Auth.verifyTotpToken(user, otpCode);
+              const cognitoUserSession = await Auth.verifyTotpToken(user, otpCode)
+              .then((data) => {
+                console.log('verifiedData', data);
+                setOtpCode('');
+                })
+              .catch((err) => console.log(err));
               // The verification is successful.
               // Set TOTP as the preferred MFA method if necessary.
               await Auth.setPreferredMFA(user, 'TOTP');
@@ -159,21 +161,18 @@ export default function App() {
             <p>MFA status: {user && userMFA === 'NOMFA' ? 'Disabled' : 'Enabled'}</p>
             <button 
               onClick={handleMFASetup} 
-              // disabled={user.preferredMFA === "SOFTWARE_TOKEN_MFA"}
               disabled={userMFA === "SOFTWARE_TOKEN_MFA"}
             >
               Set Auth APP 2FA
             </button>
             <button 
               onClick={handleSet2FASMS} 
-              // disabled={user.preferredMFA === 'SMS'}
               disabled={userMFA === 'SMS'}
             >
               Set SMS Auth
             </button>
             <button
               onClick={handleRemove2FA}
-              // disabled={user.preferredMFA === "NOMFA"}
               disabled={userMFA === "NOMFA"}
             >
               Remove 2FA
