@@ -86,21 +86,21 @@ Amplify.configure(awsExports);
 
 export default function App() {
 
-  // const [userMFA, setUserMFA] = React.useState(null);
+  const [userMFA, setUserMFA] = React.useState(null);
   const [code, setCode] = React.useState(null);
   const [otpCode, setOtpCode] = React.useState(null);
 
   return (
     <Authenticator socialProviders={["google"]}>
       {({ signOut, user, setupTOTP }) => {
-        {/* setUserMFA(user.preferredMFA); */}
+        setUserMFA(user.preferredMFA);
 
         const handleSet2FASMS = async () => {
           await Auth.setPreferredMFA(user, 'SMS')
           .then((data) => {
             console.log(data)
             console.log('set2faSMS-1');
-            {/* setUserMFA('SMS'); */}
+            setUserMFA('SMS');
           })
           .catch((err) => console.log(err));
           console.log('set2faSMS');
@@ -112,7 +112,7 @@ export default function App() {
           .then((data) => {
             console.log(data)
             console.log('removed-1');
-            {/* setUserMFA('NOMFA'); */}
+            setUserMFA('NOMFA');
           })
           .catch((err) => console.log(err));
           console.log('removed-2');
@@ -144,6 +144,7 @@ export default function App() {
               // The verification is successful.
               // Set TOTP as the preferred MFA method if necessary.
               await Auth.setPreferredMFA(user, 'TOTP');
+              setUserMFA('SOFTWARE_TOKEN_MFA')
             } catch (error) {
               console.error('Error verifying TOTP MFA:', error);
             }
@@ -155,11 +156,29 @@ export default function App() {
           <h1>Hello {user.attributes.email}</h1>
           <div>
             <h4>Set 2FA</h4>
-            <p>MFA status: {user && user.preferredMFA === 'NOMFA' ? 'Disabled' : 'Enabled'}</p>
-            <button onClick={handleMFASetup} disabled={user.preferredMFA === "SOFTWARE_TOKEN_MFA"}>Set Auth APP 2FA</button>
-            <button onClick={handleSet2FASMS} disabled={user.preferredMFA === 'SMS'}>Set SMS Auth</button>
-            <button onClick={handleRemove2FA} disabled={user.preferredMFA === "NOMFA"}>Remove 2FA</button>
-            {code &&
+            <p>MFA status: {user && userMFA === 'NOMFA' ? 'Disabled' : 'Enabled'}</p>
+            <button 
+              onClick={handleMFASetup} 
+              // disabled={user.preferredMFA === "SOFTWARE_TOKEN_MFA"}
+              disabled={userMFA === "SOFTWARE_TOKEN_MFA"}
+            >
+              Set Auth APP 2FA
+            </button>
+            <button 
+              onClick={handleSet2FASMS} 
+              // disabled={user.preferredMFA === 'SMS'}
+              disabled={userMFA === 'SMS'}
+            >
+              Set SMS Auth
+            </button>
+            <button
+              onClick={handleRemove2FA}
+              // disabled={user.preferredMFA === "NOMFA"}
+              disabled={userMFA === "NOMFA"}
+            >
+              Remove 2FA
+            </button>
+            {code && userMFA !== 'SOFTWARE_TOKEN_MFA' &&
             <>
               <p>Scan this QR code with your authenticator app</p>
               <QRCode value={code} />
