@@ -5,6 +5,7 @@ import '@aws-amplify/ui-react/styles.css';
 import QRCode from 'qrcode.react';
 
 import awsExports from './aws-exports';
+import ResetPassword from './PasswordReset';
 Amplify.configure(awsExports);
 // Amplify.configure({
 //   "aws_project_region": process.env.REACT_APP_cognito_region,
@@ -197,7 +198,8 @@ export default function App() {
           <button onClick={signOut}>Sign out</button>
           <div style={{ 'margin': '50px'}}>
             <h4>Change password</h4>
-          <AccountSettings.ChangePassword onSuccess={handleSuccess}/>
+          {/* <AccountSettings.ChangePassword onSuccess={handleSuccess}/> */}
+            <ResetPassword />
           </div>
 
         </main>
